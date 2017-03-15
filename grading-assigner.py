@@ -197,14 +197,13 @@ if __name__ == "__main__":
     cmd_parser.add_argument('--debug', '-d', action='store_true', help='Turn on debug statements.')
     args = cmd_parser.parse_args()
 
-    if not args.token or args.mailgun:
+    if not args.token or not args.mailgun:
         cmd_parser.print_help()
         cmd_parser.exit()
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
     
-
     global mailgun_api_key
     mailgun_api_key = args.mailgun
 
