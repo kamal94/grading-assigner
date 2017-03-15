@@ -33,6 +33,31 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 headers = None
+mailgun_api_key = None
+
+
+def notify_user_via_email(review_number, reivew_url, start_time, project_number=274):
+    email_content= """
+Congratulations! You have a new review waiting for you.
+The project to review is number {}.
+The review number is {}.
+You can start grading by visiting this link: {}.
+The start time for this project is {}
+              """.format(project_number, review_number, reivew_url, start_time)
+
+    global mailgun_api_key
+    if not mailgun_api_key:
+        return "something went wrong. The mailgun api key is not set"
+
+    return requests.post(
+        "https://api.mailgun.net/v3/mg.kamalaldin.com/messages",
+        auth=("api", mailgun_api_key),
+        data={"from": "Grader Central <udacity.grader@kamalaldin.com>",
+              "to": ["kamal.aldin.94@gmail.com"],
+              "subject": "New Review Pending [{}]".format(project_number),
+              "text": email_content
+              })
+
 
 def signal_handler(signal, frame):
     if headers:
@@ -55,6 +80,7 @@ def alert_for_assignment(current_request, headers):
         logger.info("View it here: " + REVIEW_URL.format(sid=current_request['submission_id']))
         logger.info("=================================================")
         logger.info("Continuing to poll...")
+        notify_user_via_email(current_request['submission_id'], REVIEW_URL.format(sid=current_request['submission_id']), time.strftime("%X %x %Z"))
         return None
     return current_request
 
@@ -125,9 +151,9 @@ def request_reviews(token):
                                         headers=headers)
             current_request = create_resp.json() if create_resp.status_code == 201 else None
         else:
-            logger.info(current_request)
             closing_at = parser.parse(current_request['closed_at'])
 
+            logger.info("Current request ends at:"+str(closing_at))
             utcnow = datetime.utcnow()
             utcnow = utcnow.replace(tzinfo=pytz.utc)
 
@@ -138,7 +164,7 @@ def request_reviews(token):
                 logger.info('0-0-0-0-0-0-0-0-0-0- refreshing request 0-0-0-0-0-0-0')
                 current_request = refresh_request(current_request)
             else:
-                logger.info('Checking for new assignments')
+                # logger.info('Checking for new assignments')
                 # If an assignment has been made since status was last checked,
                 # the request record will no longer be 'fulfilled'
                 url = GET_REQUEST_URL_TMPL.format(BASE_URL, current_request['id'])
@@ -161,15 +187,26 @@ if __name__ == "__main__":
 	    Your Udacity auth token. To obtain, login to review.udacity.com, open the Javascript console, and copy the output of `JSON.parse(localStorage.currentUser).token`.  This can also be stored in the environment variable UDACITY_AUTH_TOKEN.
 	"""
     )
+    cmd_parser.add_argument('--mailgun-api-key', '-M', dest='mailgun',
+    metavar='MAILGUN', type=str,
+    action='store', default=os.environ.get('MAILGUN_API_KEY'),
+    help="""
+        Your Mailgun api key. To obtain, subscribe to mailgun (it's free) and get your api key.  This can also be stored in the environment variable MAILGUN_API_KEY.
+    """
+    )
     cmd_parser.add_argument('--debug', '-d', action='store_true', help='Turn on debug statements.')
     args = cmd_parser.parse_args()
 
-    if not args.token:
+    if not args.token or args.mailgun:
         cmd_parser.print_help()
         cmd_parser.exit()
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
+    
+
+    global mailgun_api_key
+    mailgun_api_key = args.mailgun
 
     request_reviews(args.token)
 
