@@ -24,6 +24,7 @@ PUT_REQUEST_URL_TMPL = '{}/submission_requests/{}.json'
 REFRESH_URL_TMPL = '{}/submission_requests/{}/refresh.json'
 ASSIGNED_COUNT_URL = '{}/me/submissions/assigned_count.json'.format(BASE_URL)
 ASSIGNED_URL = '{}/me/submissions/assigned.json'.format(BASE_URL)
+WAITS_URL = "{}/submission_requests/{}/waits"
 
 REVIEW_URL = 'https://review.udacity.com/#!/submissions/{sid}'
 REQUESTS_PER_SECOND = 1 # Please leave this alone.
@@ -83,6 +84,14 @@ def alert_for_assignment(current_request, headers):
         notify_user_via_email(current_request['submission_id'], REVIEW_URL.format(sid=current_request['submission_id']), time.strftime("%X %x %Z"))
         return None
     return current_request
+
+def get_queue_number(request_id):
+    waits_resp = requests.get(WAITS_URL.format(BASE_URL, request_id), headers=headers)
+    if waits_resp.status_code == 200:
+        return waits_resp.json()[0]['position']
+    else:
+        print("Something went wrong with getting queue number. Status code:", waits_resp.status_code)
+
 
 def wait_for_assign_eligible():
     while True:
@@ -152,8 +161,9 @@ def request_reviews(token):
             current_request = create_resp.json() if create_resp.status_code == 201 else None
         else:
             closing_at = parser.parse(current_request['closed_at'])
+            queue_number = get_queue_number(current_request['id'])
 
-            logger.info("Current request ends at:"+str(closing_at))
+            logger.info("Request {} ends at {}, queue # {}".format(current_request['id'], closing_at, queue_number or "ERROR "))
             utcnow = datetime.utcnow()
             utcnow = utcnow.replace(tzinfo=pytz.utc)
 
