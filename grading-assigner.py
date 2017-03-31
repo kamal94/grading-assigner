@@ -217,5 +217,10 @@ if __name__ == "__main__":
     global mailgun_api_key
     mailgun_api_key = args.mailgun
 
-    request_reviews(args.token)
+    while True:
+        try:
+            request_reviews(args.token)
+        except Exception as e:
+            print(e)
+
 
