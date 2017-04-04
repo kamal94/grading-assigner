@@ -42,7 +42,7 @@ def notify_user_via_email(review_number, reivew_url, start_time, project_number=
 Congratulations! You have a new review waiting for you.
 The project to review is number {}.
 The review number is {}.
-You can start grading by visiting this link: {}.
+You can start grading by visiting this link: {} .
 The start time for this project is {}
               """.format(project_number, review_number, reivew_url, start_time)
 
